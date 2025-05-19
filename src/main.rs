@@ -44,7 +44,7 @@ fn change() {
         .arg("switchc") // Probably meant "switch-client", adjust as needed
         .arg("-t")
         .arg(name)
-        .spawn()
+        .status()
         .expect("Failed to change session");
 }
 
@@ -59,7 +59,7 @@ fn new() {
         .arg("-d")
         .arg("-s")
         .arg(name1)
-        .spawn()
+        .status()
         .expect("Failed to start new session");
 }
 fn new_attach() {
@@ -72,7 +72,7 @@ fn new_attach() {
         .arg("new")
         .arg("-s")
         .arg(name1)
-        .spawn()
+        .status()
         .expect("Failed to start new session");
 }
 fn attach() {
@@ -104,6 +104,6 @@ fn attach() {
         .arg("a") 
         .arg("-t")
         .arg(name)
-        .spawn()
+        .status()
         .expect("Failed to attach session");
 }
