@@ -3,5 +3,5 @@
 version = 3
 
 [[package]]
-name = "mytmux-helper"
+name = "mytmux_helper"
 version = "0.1.0"

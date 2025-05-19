@@ -1,28 +1,20 @@
 {
-  description = "My Rust package flake with overlay";
+  description = "My tmux helper";
 
   inputs = {
-    nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
-    flake-utils.url = "github:numtide/flake-utils";
+    nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
   };
 
-  outputs = { self, nixpkgs, flake-utils, ... }:
-    flake-utils.lib.eachDefaultSystem (system:
-      let
-        pkgs = import nixpkgs {
-          inherit system;
-          overlays = [ self.overlay ];
-        };
-      in {
-        packages.mytmux_helper = pkgs.mytmux_helper;
-
-        overlays = {
-          default = self.overlay;
-        };
-
-        overlay = self.overlay;
-
-        # Other outputs like devShells, apps, etc.
-      });
+  outputs = { self, nixpkgs, flake-utils, ... } @input: let
+    system  = "x86_64-linux";
+    pkgs = import nixpkgs{inherit system;};
+  in
+  {
+    packages.${system}.default =  pkgs.rustPlatform.buildRustPackage
+    {
+      name = "mytmux_helper"  ;
+      cargoLock.lockFile = ./Cargo.lock;
+      src = ./. ;
+    };
+  };
 }
-

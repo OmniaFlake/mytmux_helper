@@ -1,1 +1,1 @@
-/home/omnia/mytmux-helper/target/debug/mytmux-helper: /home/omnia/mytmux-helper/src/main.rs
+/home/omnia/mytmux_helper/target/debug/mytmux-helper: /home/omnia/mytmux_helper/src/main.rs
