@@ -2,11 +2,7 @@ use std::io::stdin;
 use std::process::Command;
 
 fn main() {
-    let mut mode = String::new();
-    println!("modes --> change(c), new(n), new attach(na), attach(a), new change(nc)");
-    stdin().read_line(&mut mode).unwrap();
-    let mode = mode.trim();
-
+    let mut is_session: bool = true;
     let output = Command::new("tmux")
         .arg("ls")
         .output()
@@ -17,27 +13,60 @@ fn main() {
         .lines()
         .filter_map(|line| line.split_once(':').map(|(name, _)| name.to_string()))
         .collect();
+    println!("                            MyTmuxHelper");
+    println!("<-------------------------------------------------------------------->");
 
-    match mode {
-        "c" | "change" => change(&sessions),
-        "n" | "new" => new(&sessions),
-        "na" | "new attach" => new_attach(&sessions),
-        "a" | "attach" => attach(&sessions),
-        "nc" | "new change" => new_change(&sessions),
-        _ => println!("Unknown mode"),
+    let mut mode = String::new();
+    if sessions.len() >= 1 {
+        print_sessions(&sessions);
+    } 
+    else{
+        println!("no sessions created right not");
+        is_session = false; 
     }
+    if is_session == true {
+        println!("modes --> change(c), new(n), new attach(na), attach(a), new change(nc)");
+        println!("<-------------------------------------------------------------------->");
+        stdin().read_line(&mut mode).unwrap();
+        let mode = mode.trim();
+        match mode {
+            "c" | "change" => change(),
+            "n" | "new" => new(),
+            "na" | "new attach" => new_attach(),
+            "a" | "attach" => attach(),
+            "nc" | "new change" => new_change(),
+            _ => println!("Unknown mode"),
+        }
+    } 
+    else {
+        println!("modes -->  new(n), new attach(na)");
+
+        println!("<-------------------------------------------------------------------->");
+
+        stdin().read_line(&mut mode).unwrap();
+        let mode = mode.trim();
+        match mode {
+            "n" | "new" => new(),
+            "na" | "new attach" => new_attach(),
+            _ => println!("Unknown mode"),
+        }
+    }
+    println!("<-------------------------------------------------------------------->");
+
 }
 
 fn print_sessions(sessions: &Vec<String>) {
     println!("Available tmux sessions:");
-    for session in sessions {
-        println!("{}", session);
+    let mut m: usize = 0;
+    while m < sessions.len(){
+        println!("{}) --> {}", m+1, sessions[m]);
+        m += 1;
     }
 }
 
-fn change(sessions: &Vec<String>) {
-    print_sessions(sessions);
+fn change() {
     let mut name = String::new();
+    println!("<-------------------------------------------------------------------->");
     println!("Session name to switch to:");
     stdin().read_line(&mut name).unwrap();
     let name = name.trim();
@@ -50,9 +79,10 @@ fn change(sessions: &Vec<String>) {
         .expect("Failed to change session");
 }
 
-fn new(sessions: &Vec<String>) {
-    print_sessions(sessions);
+fn new() {
     let mut name = String::new();
+    println!("<-------------------------------------------------------------------->");
+ 
     println!("New session name:");
     stdin().read_line(&mut name).unwrap();
     let name = name.trim();
@@ -66,9 +96,9 @@ fn new(sessions: &Vec<String>) {
         .expect("Failed to start new session");
 }
 
-fn new_attach(sessions: &Vec<String>) {
-    print_sessions(sessions);
-
+fn new_attach() {
+    println!("<-------------------------------------------------------------------->");
+ 
     let mut name = String::new();
     println!("New session name:");
     stdin().read_line(&mut name).unwrap();
@@ -82,8 +112,9 @@ fn new_attach(sessions: &Vec<String>) {
         .expect("Failed to start and attach session");
 }
 
-fn attach(sessions: &Vec<String>) {
-    print_sessions(sessions);
+fn attach() {
+    println!("<-------------------------------------------------------------------->");
+
     let mut name = String::new();
     println!("Session name to attach to:");
     stdin().read_line(&mut name).unwrap();
@@ -97,8 +128,9 @@ fn attach(sessions: &Vec<String>) {
         .expect("Failed to attach to session");
 }
 
-fn new_change(sessions: &Vec<String>) {
-    print_sessions(sessions);
+fn new_change() {
+    println!("<-------------------------------------------------------------------->");
+
     let mut name = String::new();
     println!("New session name:");
     stdin().read_line(&mut name).unwrap();
