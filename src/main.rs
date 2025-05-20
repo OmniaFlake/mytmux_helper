@@ -7,7 +7,10 @@ fn main() {
         .arg("ls")
         .output()
         .expect("Failed to execute tmux ls");
-
+    let name = Command::new("whoami")
+        .output()
+        .expect("cant get the name");
+    let linux_name = String::from_utf8_lossy(&name.stdout);
     let output_str = String::from_utf8_lossy(&output.stdout);
     let sessions: Vec<String> = output_str
         .lines()
@@ -34,10 +37,10 @@ fn main() {
 
         match mode {
             "c" | "change" => change(),
-            "n" | "new" => new(),
-            "na" | "new attach" => new_attach(),
+            "n" | "new" => new(&linux_name),
+            "na" | "new attach" => new_attach(&linux_name),
             "a" | "attach" => attach(),
-            "nc" | "new change" => new_change(),
+            "nc" | "new change" => new_change(&linux_name),
             _ => println!("Unknown mode"),
         }
     } 
@@ -51,8 +54,8 @@ fn main() {
         println!("<-------------------------------------------------------------------->");
 
         match mode {
-            "n" | "new" => new(),
-            "na" | "new attach" => new_attach(),
+            "n" | "new" => new(&linux_name),
+            "na" | "new attach" => new_attach(&linux_name),
             _ => println!("Unknown mode"),
         }
     }
@@ -83,7 +86,7 @@ fn change() {
         .expect("Failed to change session");
 }
 
-fn new() {
+fn new(linux_name: &str) {
     let mut name = String::new();
     let mut dic = String::new();
  
@@ -96,7 +99,7 @@ fn new() {
     stdin().read_line(&mut dic).unwrap();
 
     let dic = dic.trim();
-    let dic = symbol_change(&dic);
+    let dic = symbol_change(&dic, &linux_name);
 
     if dic.len() >= 1{
         Command::new("tmux")
@@ -123,7 +126,7 @@ fn new() {
 
 }
 
-fn new_attach() {
+fn new_attach(linux_name: &str) {
  
     let mut name = String::new();
     let mut dic = String::new();
@@ -136,7 +139,7 @@ fn new_attach() {
 
     stdin().read_line(&mut dic).unwrap();
     let dic = dic.trim();
-    let dic = symbol_change(&dic);
+    let dic = symbol_change(&dic, &linux_name);
     if dic.len() >= 1{
         Command::new("tmux")
             .arg("new")
@@ -172,7 +175,7 @@ fn attach() {
         .expect("Failed to attach to session");
 }
 
-fn new_change() {
+fn new_change(linux_name: &str) {
     let mut name = String::new();
     let mut dic = String::new();
  
@@ -186,7 +189,7 @@ fn new_change() {
     let dic = dic.trim();
 
 
-    let dic = symbol_change(&dic);
+    let dic = symbol_change(&dic, &linux_name);
 
     if dic.len() >= 1{
         Command::new("tmux")
@@ -219,9 +222,9 @@ fn new_change() {
         .expect("Failed to switch to session");
 }
 
-fn symbol_change(dic: &str) -> String {
+fn symbol_change(dic: &str, linux_name: &str) -> String {
     if dic.starts_with("~") {
-        return format!("/home/omnia/{}", &dic[1..]);
+        return format!("/home/{}/{}", &linux_name.trim(), &dic[1..]);
     } else {
         return dic.to_string();
     }
