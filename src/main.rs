@@ -2,15 +2,15 @@ use std::io::{stdin, Write};
 use std::process::Command;
 
 /// Utility: Expand ~ to /home/<user> in directory paths.
+/// Utility: Detect if we are running inside a tmux session.
 fn expand_home(dic: &str, linux_name: &str) -> String {
     if dic.starts_with('~') {
-        format!("/home/{}/{}", linux_name.trim(), dic[1..].trim_start_matches('/'))
+        let og =  format!("/home/{}/{}", linux_name.trim(), &dic[1..]);
+        return og.replace(" ", "/");
     } else {
-        dic.to_string()
+        dic.to_string().replace(" ", "/")
     }
 }
-
-/// Utility: Detect if we are running inside a tmux session.
 fn in_tmux() -> bool {
     std::env::var("TMUX").map_or(false, |v| !v.trim().is_empty())
 }
