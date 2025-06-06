@@ -3,7 +3,14 @@ use std::process::Command;
 
 /// Utility: Expand ~ to /home/<user> in directory paths.
 /// Utility: Detect if we are running inside a tmux session.
-fn expand_home(dic: &str, linux_name: &str) -> String {
+fn expand_home(dic: &str, linux_name: &str, is_zz: bool) -> String {
+    if is_zz {
+        let x = Command::new("zoxide").arg("query").arg(dic).output().expect("lol");
+        let xo = String::from_utf8_lossy(&x.stdout).trim().to_string();
+        if xo != "zoxide : no match found"{
+            return xo
+        }
+    }
     if dic.starts_with('~') {
         let og =  format!("/home/{}/{}", linux_name.trim(), &dic[1..]);
         return og.replace(" ", "/");
@@ -97,6 +104,7 @@ fn new_change(linux_name: &str) {
 fn get_session_name_and_dir(linux_name: &str) -> (String, String) {
     let mut name = String::new();
     let mut dic = String::new();
+    let is_z: bool = is_zoxide();
     print!("New session name: ");
     std::io::stdout().flush().ok();
     stdin().read_line(&mut name).unwrap();
@@ -104,8 +112,19 @@ fn get_session_name_and_dir(linux_name: &str) -> (String, String) {
     std::io::stdout().flush().ok();
     stdin().read_line(&mut dic).unwrap();
     let name = name.trim().to_string();
-    let dic = expand_home(dic.trim(), linux_name);
+    let dic = expand_home(dic.trim(), linux_name, is_z);
     (name, dic)
+}
+
+fn is_zoxide()-> bool {
+    let x = Command::new("which")
+        .arg("zoxide")
+        .output()
+        .expect("error lo");
+    if String::from_utf8_lossy(&x.stdout).trim().to_string() == "/run/current-system/sw/bin/zoxide" {
+        return true
+    }
+    false
 }
 
 fn main() {
@@ -126,7 +145,6 @@ fn main() {
     println!("                            MyTmuxHelper");
     println!("<-------------------------------------------------------------------->");
     let in_tmux = in_tmux();
-
     let is_session = !sessions.is_empty();
     if is_session {
         print_sessions(&sessions);
@@ -195,3 +213,4 @@ fn main() {
 
     println!("<-------------------------------------------------------------------->");
 }
+
