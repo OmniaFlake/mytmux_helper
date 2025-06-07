@@ -69,6 +69,9 @@ fn directory(linux_name: &str, is_zoxide: &bool) ->  String {
 
     let dic = dic.trim().to_string();
 
+    if dic.is_empty(){
+        return dic
+    }
     if *is_zoxide {
         let cmd = Command::new("zoxide")
             .arg("query")
