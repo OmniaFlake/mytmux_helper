@@ -1,216 +1,161 @@
-use std::io::{stdin, Write};
-use std::process::Command;
+use std::io::stdin;
+use std::process::{exit, Command};
 
-/// Utility: Expand ~ to /home/<user> in directory paths.
-/// Utility: Detect if we are running inside a tmux session.
-fn expand_home(dic: &str, linux_name: &str, is_zz: bool) -> String {
-    if is_zz {
-        let x = Command::new("zoxide").arg("query").arg(dic).output().expect("lol");
-        let xo = String::from_utf8_lossy(&x.stdout).trim().to_string();
-        if xo != "zoxide : no match found"{
-            return xo
+fn main() {
+    let is_tmux = is_tmux_installed();
+    if !is_tmux {
+        println!("looks like u dont have tmux installed, or this program isnt detecting it in binary");
+        exit(1)
+    }
+
+    println!("Welcome to mytmuxhelper");
+
+    let (sessions, _isnt_empty) = list_sessions();
+    let name_sess = name();
+    let in_tmux = in_tmux();
+
+    let found = sessions.iter().any(|s| s.trim() == name_sess.trim());
+    let tmux_status = (found, in_tmux);
+
+    match tmux_status {
+        (true, false) => attach(&name_sess),
+        (true, true) => change(&name_sess),
+        (false, false) => new_attach(&name_sess),
+        (false, true) => new_change(&name_sess),
+    }
+}
+
+fn is_tmux_installed() -> bool {
+    let cmd = Command::new("which").arg("tmux").output().expect("fail");
+    let cmd_std = String::from_utf8_lossy(&cmd.stdout).trim().to_string();
+    !cmd_std.is_empty() && cmd_std.len() < 50
+}
+
+fn list_sessions() -> (Vec<String>, bool) {
+    let tmux_ls = Command::new("tmux").arg("ls").output();
+    if tmux_ls.is_err() {
+        return (Vec::new(), false);
+    }
+    let tmux_ls = tmux_ls.unwrap();
+    let tmux_ls_std = String::from_utf8_lossy(&tmux_ls.stdout).trim().to_string();
+    let sessions: Vec<String> = tmux_ls_std
+        .lines()
+        .filter_map(|line| {
+            if let Some(idx) = line.find(':') {
+                Some(line[..idx].trim().to_string())
+            } else {
+                None
+            }
+        })
+        .collect();
+    let isnt_empty = !sessions.is_empty();
+    println!("\nsessions are -->");
+    let mut x = 0;
+    while x < sessions.len() {
+        println!("{})  {}", x+1, sessions[x]);
+        x += 1;
+    }
+
+    (sessions, isnt_empty)
+}
+
+fn directory(linux_name: &str, is_zoxide: &bool) ->  String {
+    let mut dic = String::new();
+
+    // flush skipped since Write is not imported
+    println!("the path of the directory: ");
+    // flush skipped since Write is not imported
+    stdin().read_line(&mut dic).unwrap();
+
+    let dic = dic.trim().to_string();
+
+    if *is_zoxide {
+        let cmd = Command::new("zoxide")
+            .arg("query")
+            .arg(&dic)
+            .output();
+        if let Ok(cmd) = cmd {
+            let cmd_std = String::from_utf8_lossy(&cmd.stdout).trim().to_string();
+            if !cmd_std.contains("zoxide: no match found") && !cmd_std.is_empty() {
+                return cmd_std;
+            }
         }
     }
     if dic.starts_with('~') {
-        let og =  format!("/home/{}/{}", linux_name.trim(), &dic[1..]);
-        return og.replace(" ", "/");
-    } else {
-        dic.to_string().replace(" ", "/")
+        let x = format!("/home/{}/{}", linux_name, &dic[1..]);
+        return x.replace(" ", "/").trim().to_string();
     }
+    dic
 }
+
+fn name() -> String {
+    println!("write the name of your session");
+    let mut name = String::new();
+    stdin().read_line(&mut name).unwrap();
+
+    name
+}
+
 fn in_tmux() -> bool {
-    std::env::var("TMUX").map_or(false, |v| !v.trim().is_empty())
+    std::env::var("TMUX").is_ok()
 }
 
-/// Utility: Print current tmux sessions.
-fn print_sessions(sessions: &[String]) {
-    println!("Available tmux sessions:");
-    for (i, session) in sessions.iter().enumerate() {
-        println!("{}) --> {}", i + 1, session);
-    }
+fn is_zoxide() -> bool {
+    let cmd = Command::new("which").arg("zoxide").output().expect("fail");
+    let cmd_std = String::from_utf8_lossy(&cmd.stdout).trim().to_string();
+    !cmd_std.is_empty() && cmd_std.len() < 50
 }
 
-/// Action: Switch to another session.
-fn change() {
-    let mut name = String::new();
-    print!("Session name to switch to: ");
-    std::io::stdout().flush().ok();
-    stdin().read_line(&mut name).unwrap();
-    let name = name.trim();
-    Command::new("tmux")
-        .arg("switch-client")
-        .arg("-t")
-        .arg(name)
-        .status()
-        .expect("Failed to change session");
+fn linux_name() -> String {
+    let cmd = Command::new("whoami").output().expect("fail");
+    String::from_utf8_lossy(&cmd.stdout).trim().to_string()
 }
 
-/// Action: Create a new session (detached).
-fn new(linux_name: &str) {
-    let (name, dic) = get_session_name_and_dir(linux_name);
+fn new_attach(name: &str) {
     let mut cmd = Command::new("tmux");
-    cmd.arg("new").arg("-d").arg("-s").arg(&name);
-    if !dic.is_empty() {
-        cmd.arg("-c").arg(dic);
+    let is_z = is_zoxide();
+    let l_name = linux_name();
+    let directory = directory(&l_name, &is_z);
+    cmd.arg("new").arg("-s").arg(name.trim());
+    if !directory.is_empty() {
+        cmd.arg("-c").arg(directory);
     }
-    cmd.status().expect("Failed to start new session");
+    cmd.status().expect("fail");
 }
 
-/// Action: Create a new session and attach.
-fn new_attach(linux_name: &str) {
-    let (name, dic) = get_session_name_and_dir(linux_name);
+fn new_change(name: &str) {
     let mut cmd = Command::new("tmux");
-    cmd.arg("new").arg("-s").arg(&name);
-    if !dic.is_empty() {
-        cmd.arg("-c").arg(dic);
+    cmd.arg("new").arg("-d").arg("-s").arg(name.trim());
+    let is_z = is_zoxide();
+    let l_name = linux_name();
+    let directory = directory(&l_name, &is_z);
+    if !directory.is_empty() {
+        cmd.arg("-c").arg(directory);
     }
-    cmd.status().expect("Failed to start new session");
-}
-
-/// Action: Attach to an existing session.
-fn attach() {
-    let mut name = String::new();
-    print!("Session name to attach to: ");
-    std::io::stdout().flush().ok();
-    stdin().read_line(&mut name).unwrap();
-    let name = name.trim();
-    Command::new("tmux")
-        .arg("attach")
-        .arg("-t")
-        .arg(name)
-        .status()
-        .expect("Failed to attach to session");
-}
-
-/// Action: Create a new session and switch to it.
-fn new_change(linux_name: &str) {
-    let (name, dic) = get_session_name_and_dir(linux_name);
-    let mut cmd = Command::new("tmux");
-    cmd.arg("new").arg("-d").arg("-s").arg(&name);
-    if !dic.is_empty() {
-        cmd.arg("-c").arg(dic);
-    }
-    cmd.status().expect("Failed to start new session");
+    cmd.status().expect("fail");
 
     Command::new("tmux")
         .arg("switch-client")
         .arg("-t")
-        .arg(name)
+        .arg(name.trim())
         .status()
-        .expect("Failed to switch to session");
+        .ok();
 }
 
-/// Utility: Prompt for session name and directory path.
-fn get_session_name_and_dir(linux_name: &str) -> (String, String) {
-    let mut name = String::new();
-    let mut dic = String::new();
-    let is_z: bool = is_zoxide();
-    print!("New session name: ");
-    std::io::stdout().flush().ok();
-    stdin().read_line(&mut name).unwrap();
-    print!("Write directory path, or leave it empty for same path: ");
-    std::io::stdout().flush().ok();
-    stdin().read_line(&mut dic).unwrap();
-    let name = name.trim().to_string();
-    let dic = expand_home(dic.trim(), linux_name, is_z);
-    (name, dic)
+fn change(name: &str) {
+    Command::new("tmux")
+        .arg("switch-client")
+        .arg("-t")
+        .arg(name.trim())
+        .status()
+        .ok();
 }
 
-fn is_zoxide()-> bool {
-    let x = Command::new("which")
-        .arg("zoxide")
-        .output()
-        .expect("error lo");
-    if String::from_utf8_lossy(&x.stdout).trim().to_string() == "/run/current-system/sw/bin/zoxide" {
-        return true
-    }
-    false
+fn attach(name: &str) {
+    Command::new("tmux")
+        .arg("a")
+        .arg("-t")
+        .arg(name.trim())
+        .status()
+        .ok();
 }
-
-fn main() {
-    let output = Command::new("tmux")
-        .arg("ls")
-        .output()
-        .expect("Failed to execute tmux ls");
-    let name = Command::new("whoami")
-        .output()
-        .expect("Can't get the name");
-    let linux_name = String::from_utf8_lossy(&name.stdout).trim().to_string();
-    let output_str = String::from_utf8_lossy(&output.stdout);
-    let sessions: Vec<String> = output_str
-        .lines()
-        .filter_map(|line| line.split_once(':').map(|(name, _)| name.to_string()))
-        .collect();
-
-    println!("                            MyTmuxHelper");
-    println!("<-------------------------------------------------------------------->");
-    let in_tmux = in_tmux();
-    let is_session = !sessions.is_empty();
-    if is_session {
-        print_sessions(&sessions);
-    } else {
-        println!("No sessions created right now");
-    }
-
-    let mut mode = String::new();
-    let show_modes = |modes: &[(&str, &str)]| {
-        let descs: Vec<String> = modes.iter().map(|(d, k)| format!("{}({})", d, k)).collect();
-        println!("modes --> {}", descs.join(", "));
-        println!("<-------------------------------------------------------------------->");
-    };
-
-    // Mode selection logic
-    if is_session && sessions.len() > 1 {
-        if in_tmux {
-            show_modes(&[("change", "c"), ("new", "n"), ("new change", "nc")]);
-            stdin().read_line(&mut mode).unwrap();
-            match mode.trim() {
-                "c" | "change" => change(),
-                "n" | "new" => new(&linux_name),
-                "nc" | "new change" => new_change(&linux_name),
-                _ => println!("Unknown mode"),
-            }
-        } else {
-            show_modes(&[("new", "n"), ("new attach", "na"), ("attach", "a"), ("new change", "nc"), ("change", "c")]);
-            stdin().read_line(&mut mode).unwrap();
-            match mode.trim() {
-                "n" | "new" => new(&linux_name),
-                "na" | "new attach" => new_attach(&linux_name),
-                "a" | "attach" => attach(),
-                "nc" | "new change" => new_change(&linux_name),
-                "c" | "change" => change(),
-                _ => println!("Unknown mode"),
-            }
-        }
-    } else if is_session {
-        if in_tmux {
-            show_modes(&[("new", "n"), ("new change", "nc")]);
-            stdin().read_line(&mut mode).unwrap();
-            match mode.trim() {
-                "n" | "new" => new(&linux_name),
-                "nc" | "new change" => new_change(&linux_name),
-                _ => println!("Unknown mode"),
-            }
-        } else {
-            show_modes(&[("new", "n"), ("new attach", "na"), ("attach", "a")]);
-            stdin().read_line(&mut mode).unwrap();
-            match mode.trim() {
-                "n" | "new" => new(&linux_name),
-                "na" | "new attach" => new_attach(&linux_name),
-                "a" | "attach" => attach(),
-                _ => println!("Unknown mode"),
-            }
-        }
-    } else {
-        show_modes(&[("new", "n"), ("new attach", "na")]);
-        stdin().read_line(&mut mode).unwrap();
-        match mode.trim() {
-            "n" | "new" => new(&linux_name),
-            "na" | "new attach" => new_attach(&linux_name),
-            _ => println!("Unknown mode"),
-        }
-    }
-
-    println!("<-------------------------------------------------------------------->");
-}
-
