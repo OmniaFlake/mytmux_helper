@@ -8,7 +8,7 @@ fn main() {
         exit(1)
     }
 
-    println!("Welcome to mytmuxhelper");
+    println!("Welcome to mytmuxhelper\n");
 
     let (sessions, _isnt_empty) = list_sessions();
     let name_sess = name();
@@ -49,13 +49,18 @@ fn list_sessions() -> (Vec<String>, bool) {
         })
         .collect();
     let isnt_empty = !sessions.is_empty();
-    println!("\nsessions are -->");
-    let mut x = 0;
-    while x < sessions.len() {
-        println!("{})  {}", x+1, sessions[x]);
-        x += 1;
+    if !isnt_empty {
+        println!("There are no tmux sessions\n");
     }
-
+    else {
+        let mut x = 0;
+        println!("sessions are:");
+        while x < sessions.len() {
+            println!("{})  {}", x+1, sessions[x]);
+            x += 1;
+        }
+        println!("\n");
+    }
     (sessions, isnt_empty)
 }
 
