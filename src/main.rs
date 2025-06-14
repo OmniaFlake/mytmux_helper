@@ -9,7 +9,6 @@ fn main() {
     }
 
     println!("Welcome to mytmuxhelper\n");
-
     let (sessions, _isnt_empty) = list_sessions();
     let name_sess = name();
     let in_tmux = in_tmux();
@@ -73,6 +72,7 @@ fn directory(linux_name: &str, is_zoxide: &bool) ->  String {
     stdin().read_line(&mut dic).unwrap();
 
     let dic = dic.trim().to_string();
+    let dicc: Vec<_> = dic.split_whitespace().collect();
 
     if dic.is_empty(){
         return dic
@@ -80,15 +80,15 @@ fn directory(linux_name: &str, is_zoxide: &bool) ->  String {
     if *is_zoxide {
         let cmd = Command::new("zoxide")
             .arg("query")
-            .arg(&dic)
-            .output();
-        if let Ok(cmd) = cmd {
-            let cmd_std = String::from_utf8_lossy(&cmd.stdout).trim().to_string();
-            if !cmd_std.contains("zoxide: no match found") && !cmd_std.is_empty() {
-                return cmd_std;
-            }
+            .args(&dicc)
+            .output()
+            .expect("fail");
+        let cmd_str = String::from_utf8_lossy(&cmd.stdout).trim().to_string();
+        if cmd_str != "zoxide: no match found" {
+            return cmd_str.to_string();
         }
     }
+
     if dic.starts_with('~') {
         let x = format!("/home/{}/{}", linux_name, &dic[1..]);
         return x.replace(" ", "/").trim().to_string();
@@ -167,3 +167,4 @@ fn attach(name: &str) {
         .status()
         .ok();
 }
+
